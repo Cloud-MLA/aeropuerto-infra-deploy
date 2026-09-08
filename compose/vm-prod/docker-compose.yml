@@ -1,0 +1,90 @@
+# BE-INT-04 — VM-PROD-1 y VM-PROD-2 (idénticas): nginx + los 5 microservicios + Swagger agregado.
+# Imágenes desde GHCR por tag. Este mismo archivo corre en las 2 VMs.
+#
+#   cd /opt/prod
+#   cp .env.example .env && $EDITOR .env          # DB_HOST = IP privada de la VM-DB, etc.
+#   cp <ruta>/nginx/nginx.conf ./nginx.conf
+#   echo $GHCR_TOKEN | sudo docker login ghcr.io -u <usuario> --password-stdin   # si las imágenes son privadas
+#   sudo docker compose pull && sudo docker compose up -d
+#   curl -s localhost/api/pasajeros/health
+
+name: aeropuerto-prod
+
+x-common: &common
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options: { max-size: "10m", max-file: "3" }
+
+services:
+  nginx:
+    <<: *common
+    image: nginx:1.27-alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on: [ms1, ms2, ms3, ms4, ms5]
+
+  ms1:
+    <<: *common
+    image: ghcr.io/cloud-mla/ms1-pasajeros-api:${TAG_MS1:-latest}
+    environment:
+      PORT: 8001
+      ENV: prod
+      DB_HOST: ${DB_HOST}
+      DB_PORT: 3306
+      DB_NAME: pasajeros
+      DB_USER: root
+      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MS2_BASE_URL: http://ms2:8002
+
+  ms2:
+    <<: *common
+    image: ghcr.io/cloud-mla/ms2-vuelos-api:${TAG_MS2:-latest}
+    environment:
+      PORT: 8002
+      ENV: prod
+      DB_HOST: ${DB_HOST}
+      DB_PORT: 5432
+      DB_NAME: vuelos
+      DB_USER: postgres
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      JAVA_OPTS: "-Xmx256m -XX:MaxRAMPercentage=75 -XX:+UseSerialGC"
+
+  ms3:
+    <<: *common
+    image: ghcr.io/cloud-mla/ms3-infraestructura-api:${TAG_MS3:-latest}
+    environment:
+      PORT: 8003
+      ENV: prod
+      MONGO_URI: mongodb://${DB_HOST}:27017/infra
+      MS2_BASE_URL: http://ms2:8002
+
+  ms4:
+    <<: *common
+    image: ghcr.io/cloud-mla/ms4-manifiesto-api:${TAG_MS4:-latest}
+    environment:
+      PORT: 8004
+      ENV: prod
+      MS1_BASE_URL: http://ms1:8001
+      MS2_BASE_URL: http://ms2:8002
+      MS3_BASE_URL: http://ms3:8003
+
+  ms5:
+    <<: *common
+    image: ghcr.io/cloud-mla/ms5-analitica-api:${TAG_MS5:-latest}
+    environment:
+      PORT: 8005
+      ENV: prod
+      AWS_REGION: us-east-1
+      ATHENA_DATABASE: aeropuerto_lake
+      ATHENA_OUTPUT: ${ATHENA_OUTPUT}
+      # En EC2 con LabInstanceProfile no se pasan claves AWS.
+
+  swagger-aggregator:
+    <<: *common
+    image: ghcr.io/cloud-mla/aeropuerto-frontend:swagger-${TAG_SWAGGER:-latest}
+    environment:
+      PORT: 8080
+    # Alternativa sin imagen propia: usar swaggerapi/swagger-ui con URLS apuntando a cada /openapi.json
