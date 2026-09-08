@@ -12,7 +12,7 @@ Dominio: **Aeropuerto Internacional Jorge Chávez**. Entorno: **AWS Academy Lear
 | [`nginx/nginx.conf`](nginx/nginx.conf) | Reverse proxy por path (`/api/pasajeros`, `/api/vuelos`, …) (BE-TX-06) | ✅ v1 |
 | [`compose/vm-db/`](compose/vm-db/) | `docker-compose.yml` de la VM de bases de datos (mysql 8 + postgres 16 + mongo 7) (BE-INT-03) | ✅ v1 |
 | [`compose/vm-prod/`](compose/vm-prod/) | `docker-compose.yml` de producción (nginx + MS1..MS5 + swagger) (BE-INT-04) | ✅ v1 |
-| `scripts/` | `aws-cli` / `user-data` para recrear la infra | ⬜ pendiente |
+| [`scripts/`](scripts/) | `user-data`, `provision.sh` (aws-cli), `smoke-e2e.sh` (BE-INT-08), `backup-db.sh` / `restore-db.sh` | ✅ v1 |
 
 ## Arquitectura
 
