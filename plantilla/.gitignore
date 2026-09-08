@@ -1,0 +1,36 @@
+# --- Secretos / entorno ---
+.env
+.env.*
+!.env.example
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# --- Node ---
+node_modules/
+dist/
+build/
+npm-debug.log*
+coverage/
+
+# --- Java ---
+target/
+*.class
+.gradle/
+
+# --- Docker / datos locales ---
+*.local.yml
+data/
+dumps/
+
+# --- Editores / SO ---
+.idea/
+.vscode/
+.DS_Store
+*.swp

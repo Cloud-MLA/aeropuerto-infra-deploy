@@ -8,9 +8,10 @@ Dominio: **Aeropuerto Internacional Jorge Chávez**. Entorno: **AWS Academy Lear
 | Archivo / carpeta | Qué es | Estado |
 |---|---|---|
 | [`RUNBOOK.md`](RUNBOOK.md) | Provisión inicial paso a paso (consola), reinicio tras corte de sesión (< 15 min) y limpieza | ✅ v1 |
-| `compose/vm-db/` | `docker-compose.yml` de la VM de bases de datos (mysql 8 + postgres 16 + mongo 7) | ⬜ pendiente |
-| `compose/vm-prod/` | `docker-compose.yml` de producción (nginx + MS1..MS5 + swagger) | ⬜ pendiente |
-| `nginx/nginx.conf` | Reverse proxy por path (`/api/pasajeros`, `/api/vuelos`, …) | ⬜ pendiente |
+| [`plantilla/`](plantilla/) | Base común de repo de microservicio: `.editorconfig`, `.env.example`, `.gitignore`, README, Dockerfiles Py/Java/Node, workflow GHCR (BE-TX-02/04/05) | ✅ v1 |
+| [`nginx/nginx.conf`](nginx/nginx.conf) | Reverse proxy por path (`/api/pasajeros`, `/api/vuelos`, …) (BE-TX-06) | ✅ v1 |
+| [`compose/vm-db/`](compose/vm-db/) | `docker-compose.yml` de la VM de bases de datos (mysql 8 + postgres 16 + mongo 7) (BE-INT-03) | ✅ v1 |
+| [`compose/vm-prod/`](compose/vm-prod/) | `docker-compose.yml` de producción (nginx + MS1..MS5 + swagger) (BE-INT-04) | ✅ v1 |
 | `scripts/` | `aws-cli` / `user-data` para recrear la infra | ⬜ pendiente |
 
 ## Arquitectura

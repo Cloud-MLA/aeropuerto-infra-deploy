@@ -1,0 +1,25 @@
+# Base Node 20 (alpine) — MS3 (Express + MongoDB). Copiar a tu repo como `Dockerfile`.
+# Asume: package.json + package-lock.json en la raíz, entrypoint en src/server.js.
+
+FROM node:20-alpine
+
+ENV NODE_ENV=production \
+    PORT=8003
+
+WORKDIR /app
+
+RUN apk add --no-cache curl
+
+COPY package*.json ./
+RUN npm ci --omit=dev
+
+COPY . .
+
+USER node
+
+EXPOSE 8003
+
+HEALTHCHECK --interval=15s --timeout=3s --start-period=20s --retries=3 \
+  CMD curl -fsS "http://localhost:${PORT}/health" || exit 1
+
+CMD ["node", "src/server.js"]
