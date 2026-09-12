@@ -1,0 +1,3 @@
+# Copiar a terraform.tfvars y ajustar si hace falta (no se sube a git).
+# aws_region = "us-east-1"
+# bucket_name = "mla-aeropuerto-lake"
