@@ -14,6 +14,7 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: pasajeros
+      MYSQL_ROOT_HOST: '%'  # sin esto, root solo puede conectar desde localhost — VM-PROD/VM-INGESTA quedan afuera
     ports:
       - "3306:3306"
     volumes:

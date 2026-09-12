@@ -38,6 +38,7 @@ services:
       DB_USER: root
       DB_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MS2_BASE_URL: http://ms2:8002
+      ROOT_PATH: /api/pasajeros
 
   ms2:
     <<: *common

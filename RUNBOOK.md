@@ -164,6 +164,15 @@ sudo docker compose ps
 > ```
 > Si ya levantaste con una contraseña rota, el volumen queda con una inicialización a medias — hace falta `sudo docker compose down -v` (se pierden los datos) antes de reintentar con la contraseña corregida.
 
+> **⚠️ La imagen oficial `mysql:8` solo permite conectar como `root` desde `localhost` por defecto.** Sin `MYSQL_ROOT_HOST=%` en el `environment`, cualquier conexión remota (desde `VM-PROD` o `VM-INGESTA`) falla con `Access denied for user 'root'@'<ip>' (using password: YES)` aunque la contraseña sea correcta. El compose de este repo ya incluye `MYSQL_ROOT_HOST: '%'`, pero si ya levantaste el contenedor sin esa variable (se aplica solo en la inicialización del volumen), arréglalo sin perder datos:
+> ```bash
+> sudo docker exec -it db-mysql mysql -uroot -p
+> ```
+> ```sql
+> RENAME USER 'root'@'localhost' TO 'root'@'%';
+> FLUSH PRIVILEGES;
+> ```
+
 Anotar la **IP privada** de `VM-DB` — es la que van en los `.env` de los microservicios. Para verla desde dentro de la instancia: `hostname -I`, o en consola: EC2 → instancia → columna **Private IPv4 addresses**.
 
 ### 1.7 VM-PROD ×2 — nginx + MS1..MS5  · BE-INT-04 · F1
@@ -215,6 +224,8 @@ sudo docker compose up -d nginx ms1 ms2 ms3 ms4 ms5
 sudo docker compose ps -a
 curl -s -w "\nHTTP_STATUS:%{http_code}\n" localhost/api/pasajeros/health
 ```
+
+> **⚠️ `nginx` cachea la resolución DNS de sus upstreams al arrancar.** Si actualizas/reinicias cualquier microservicio con `sudo docker compose up -d --force-recreate <servicio>`, el contenedor recreado obtiene una **IP nueva** en la red de Docker — pero `nginx` sigue apuntando a la IP vieja del contenedor destruido hasta que él mismo se reinicie. Síntoma: el microservicio queda `healthy` en `docker compose ps`, pero `curl localhost/api/...` da `502 Bad Gateway`. Fix: después de recrear cualquier backend, siempre `sudo docker compose restart nginx` y recién ahí probar el healthcheck.
 
 Si `swagger-aggregator` todavía no tiene imagen publicada (bloqueado por Frontend), coméntalo en `nginx.conf` (el `upstream swagger` y las rutas `/docs`) — si no, nginx falla al arrancar con `host not found in upstream "swagger-aggregator:8080"` porque no puede resolver un contenedor que no existe. Cuando la imagen exista: descomentar, `sudo docker compose up -d nginx swagger-aggregator`.
 
