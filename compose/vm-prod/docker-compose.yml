@@ -99,7 +99,10 @@ services:
       PORT: 8003
       ENV: prod
       MONGO_URI: mongodb://${DB_HOST}:27017/infra
-      MS2_BASE_URL: http://ms2:8002
+      # El codigo de ms3 lee MS2_URL (ver .env.example del repo), no MS2_BASE_URL -- con el
+      # nombre viejo el cliente MS3->MS2 caia a su default http://localhost:8002 (el propio
+      # contenedor de ms3, no ms2) y la validacion de vuelo nunca alcanzaba a MS2 de verdad.
+      MS2_URL: http://ms2:8002
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:8003/api/infra/health"]
       interval: 15s
