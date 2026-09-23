@@ -11,6 +11,13 @@ resource "aws_apigatewayv2_vpc_link" "main" {
 resource "aws_apigatewayv2_api" "main" {
   name          = "aeropuerto-api"
   protocol_type = "HTTP"
+
+  cors_configuration {
+    allow_origins = ["https://main.d6qmhb5ipm8l2.amplifyapp.com"]
+    allow_methods = ["GET", "POST", "PATCH", "OPTIONS"]
+    allow_headers = ["content-type"]
+    max_age       = 300
+  }
 }
 
 resource "aws_apigatewayv2_integration" "alb" {
