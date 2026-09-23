@@ -1,0 +1,59 @@
+# DS-05 — VM-INGESTA — PLACEHOLDER (Terraform lo copia a /opt/ingesta al crear la instancia).
+#
+# ACTUALIZACION 2026-09-23: los 3 contenedores reales ya existen y se corrieron contra la infra
+# de produccion (aeropuerto-data-science/ingesta/{ingesta-ms1,ingesta-ms2,ingesta-ms3}/), pero
+# por tiempo se desplegaron a mano via S3 + SSM directo a /opt/ingesta/ingesta-msX/ en la instancia
+# ya corriendo, NO reemplazando este archivo. Es decir: la ingesta real YA CORRIO (ver
+# docs/evidencias/backend/ y docs/evidencias/athena/ en cloud-computing-proyecto), pero si se
+# recrea VM-INGESTA desde cero con Terraform, este placeholder es lo que va a levantar --
+# reemplazar este archivo por un compose real que apunte a esos 3 directorios (o documentar el
+# mismo procedimiento manual) antes de la exposicion presencial si toca reconstruir la VM.
+#
+#   cd /opt/ingesta && cp .env.example .env && $EDITOR .env
+#   sudo docker compose up -d && sudo docker compose ps
+
+name: aeropuerto-ingesta
+
+x-common: &common
+  image: python:3.12-slim
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options: { max-size: "10m", max-file: "3" }
+
+services:
+  ingesta-mysql:
+    <<: *common
+    container_name: ingesta-mysql
+    environment:
+      DB_HOST: ${DB_HOST}
+      DB_PORT: 3306
+      S3_BUCKET: ${S3_BUCKET}
+      S3_PREFIX: raw/ms1/
+    command: >
+      sh -c "echo 'PLACEHOLDER ingesta-mysql: reemplazar con el pipeline real de aeropuerto-data-science/ingesta' &&
+             sleep infinity"
+
+  ingesta-postgres:
+    <<: *common
+    container_name: ingesta-postgres
+    environment:
+      DB_HOST: ${DB_HOST}
+      DB_PORT: 5432
+      S3_BUCKET: ${S3_BUCKET}
+      S3_PREFIX: raw/ms2/
+    command: >
+      sh -c "echo 'PLACEHOLDER ingesta-postgres: reemplazar con el pipeline real de aeropuerto-data-science/ingesta' &&
+             sleep infinity"
+
+  ingesta-mongo:
+    <<: *common
+    container_name: ingesta-mongo
+    environment:
+      DB_HOST: ${DB_HOST}
+      DB_PORT: 27017
+      S3_BUCKET: ${S3_BUCKET}
+      S3_PREFIX: raw/ms3/
+    command: >
+      sh -c "echo 'PLACEHOLDER ingesta-mongo: reemplazar con el pipeline real de aeropuerto-data-science/ingesta' &&
+             sleep infinity"
