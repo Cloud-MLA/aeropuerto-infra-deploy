@@ -1,3 +1,19 @@
 # Copiar a terraform.tfvars y ajustar si hace falta (no se sube a git).
 # aws_region = "us-east-1"
 # bucket_name = "mla-aeropuerto-lake"
+
+# Obligatorias — sin default, Terraform no aplica sin esto puesto en terraform.tfvars.
+# Solo letras, números, '-'/'_' (ver RUNBOOK 1.6: '$'/'\'/comillas rompen el init de mysql:8).
+db_mysql_root_password = "pon-una-contrasena-larga"
+db_postgres_password   = "pon-otra-contrasena-larga"
+
+# Tags de imagen a desplegar en VM-PROD (por defecto 'latest'); fijar a vX.Y para el Hito.
+# tag_ms1     = "latest"
+# tag_ms2     = "latest"
+# tag_ms3     = "latest"
+# tag_ms4     = "latest"
+# tag_ms5     = "latest"
+# tag_swagger = "latest"
+
+# Activar solo cuando btoroled/aeropuerto-frontend:swagger-<tag> exista en Docker Hub.
+# enable_swagger_aggregator = true
