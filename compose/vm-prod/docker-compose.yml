@@ -1,10 +1,14 @@
 # BE-INT-04 — VM-PROD-1 y VM-PROD-2 (idénticas): nginx + los 5 microservicios + Swagger agregado.
-# Imágenes desde GHCR por tag. Este mismo archivo corre en las 2 VMs.
+# Imágenes desde Docker Hub (btoroled/...) por tag, públicas — sin login necesario. Este mismo
+# archivo corre en las 2 VMs.
+#
+# ms1..ms5 publican su puerto directo al host (8001..8005) además de estar detrás de nginx (:80)
+# — la VM tiene IP pública y el SG las abre, para poder probar con Postman/Swagger sin pasar
+# por nginx/ALB/API Gateway (proyecto de curso, sin requisitos de hardening).
 #
 #   cd /opt/prod
 #   cp .env.example .env && $EDITOR .env          # DB_HOST = IP privada de la VM-DB, etc.
 #   cp <ruta>/nginx/nginx.conf ./nginx.conf
-#   echo $GHCR_TOKEN | sudo docker login ghcr.io -u <usuario> --password-stdin   # si las imágenes son privadas
 #   sudo docker compose pull && sudo docker compose up -d
 #   curl -s localhost/api/pasajeros/health
 
@@ -25,10 +29,20 @@ services:
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on: [ms1, ms2, ms3, ms4, ms5]
+    healthcheck:
+      # 127.0.0.1, no "localhost": busybox wget resuelve localhost a ::1 primero y nginx
+      # no escucha IPv6 -> "Connection refused" aunque el server este perfectamente arriba.
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/api/pasajeros/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   ms1:
     <<: *common
-    image: ghcr.io/cloud-mla/ms1-pasajeros-api:${TAG_MS1:-latest}
+    image: btoroled/ms1-pasajeros-api:${TAG_MS1:-latest}
+    ports:
+      - "8001:8001"
     environment:
       PORT: 8001
       ENV: prod
@@ -39,10 +53,21 @@ services:
       DB_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MS2_BASE_URL: http://ms2:8002
       ROOT_PATH: /api/pasajeros
+    healthcheck:
+      # ms1 no trae curl/wget en la imagen (python:slim) — se usa el propio interprete.
+      # Sin prefijo: nginx SI recorta /api/pasajeros/ para ms1 (proxy_pass con "/" final),
+      # a diferencia de ms2..ms5 que reciben la URL completa tal cual.
+      test: ["CMD", "python3", "-c", "import urllib.request as u; u.urlopen('http://localhost:8001/health', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
 
   ms2:
     <<: *common
-    image: ghcr.io/cloud-mla/ms2-vuelos-api:${TAG_MS2:-latest}
+    image: btoroled/ms2-vuelos-api:${TAG_MS2:-latest}
+    ports:
+      - "8002:8002"
     environment:
       PORT: 8002
       ENV: prod
@@ -52,29 +77,61 @@ services:
       DB_USER: postgres
       DB_PASSWORD: ${POSTGRES_PASSWORD}
       JAVA_OPTS: "-Xmx256m -XX:MaxRAMPercentage=75 -XX:+UseSerialGC"
+    healthcheck:
+      # OJO (hallazgo 2026-09-22): el actuator de Spring vive en /actuator/health (base path
+      # propio, NO bajo /api/vuelos) — /api/vuelos/actuator/health via nginx da 500 porque ese
+      # path no existe en la app. Este healthcheck pega directo al puerto del contenedor, sin
+      # nginx, así que sí funciona. Pendiente para Mariano: decidir si nginx necesita una location
+      # especial para /api/vuelos/actuator/* (como ya existe para /docs y /swagger-ui/) o si el
+      # equipo prefiere no exponer el actuator públicamente.
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8002/actuator/health"]
+      interval: 20s
+      timeout: 5s
+      retries: 6
+      start_period: 40s
 
   ms3:
     <<: *common
-    image: ghcr.io/cloud-mla/ms3-infraestructura-api:${TAG_MS3:-latest}
+    image: btoroled/ms3-infraestructura-api:${TAG_MS3:-latest}
+    ports:
+      - "8003:8003"
     environment:
       PORT: 8003
       ENV: prod
       MONGO_URI: mongodb://${DB_HOST}:27017/infra
       MS2_BASE_URL: http://ms2:8002
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8003/api/infra/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
 
   ms4:
     <<: *common
-    image: ghcr.io/cloud-mla/ms4-manifiesto-api:${TAG_MS4:-latest}
+    image: btoroled/ms4-manifiesto-api:${TAG_MS4:-latest}
+    ports:
+      - "8004:8004"
     environment:
       PORT: 8004
       ENV: prod
       MS1_BASE_URL: http://ms1:8001
       MS2_BASE_URL: http://ms2:8002
       MS3_BASE_URL: http://ms3:8003
+    healthcheck:
+      # "/" no existe (404); FastAPI monta /docs en la raiz aunque el router de negocio
+      # use el prefijo /api/manifiesto (mismo patron que el actuator de ms2 — ver nota ahi).
+      test: ["CMD", "python3", "-c", "import urllib.request as u; u.urlopen('http://localhost:8004/docs', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
 
   ms5:
     <<: *common
-    image: ghcr.io/cloud-mla/ms5-analitica-api:${TAG_MS5:-latest}
+    image: btoroled/ms5-analitica-api:${TAG_MS5:-latest}
+    ports:
+      - "8005:8005"
     environment:
       PORT: 8005
       ENV: prod
@@ -82,10 +139,16 @@ services:
       ATHENA_DATABASE: aeropuerto_lake
       ATHENA_OUTPUT: ${ATHENA_OUTPUT}
       # En EC2 con LabInstanceProfile no se pasan claves AWS.
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request as u; u.urlopen('http://localhost:8005/docs', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
 
   swagger-aggregator:
     <<: *common
-    image: ghcr.io/cloud-mla/aeropuerto-frontend:swagger-${TAG_SWAGGER:-latest}
+    image: btoroled/aeropuerto-frontend:swagger-${TAG_SWAGGER:-latest}
     environment:
       PORT: 8080
     # Alternativa sin imagen propia: usar swaggerapi/swagger-ui con URLS apuntando a cada /openapi.json

@@ -1,8 +1,8 @@
 # RUNBOOK.md 1.2 — mismas 5 SGs, mismas reglas, referenciadas entre sí (sin CIDRs a mano).
 
 resource "aws_security_group" "apigw_vpclink" {
-  name        = "sg-apigw-vpclink"
-  description = "VPC Link de API Gateway — sin inbound propio"
+  name        = "aero-sg-apigw-vpclink"
+  description = "VPC Link de API Gateway - sin inbound propio"
   vpc_id      = aws_vpc.main.id
 
   egress {
@@ -16,8 +16,8 @@ resource "aws_security_group" "apigw_vpclink" {
 }
 
 resource "aws_security_group" "alb" {
-  name        = "sg-alb"
-  description = "ALB interno — recibe solo del VPC Link"
+  name        = "aero-sg-alb"
+  description = "ALB interno - recibe solo del VPC Link"
   vpc_id      = aws_vpc.main.id
 
   ingress {
@@ -38,8 +38,8 @@ resource "aws_security_group" "alb" {
 }
 
 resource "aws_security_group" "vm_prod" {
-  name        = "sg-vm-prod"
-  description = "VM-PROD-1/2 — recibe solo del ALB"
+  name        = "aero-sg-vm-prod"
+  description = "VM-PROD-1/2 - recibe del ALB y, para el curso, tambien acceso publico directo a nginx y a cada microservicio"
   vpc_id      = aws_vpc.main.id
 
   ingress {
@@ -48,6 +48,10 @@ resource "aws_security_group" "vm_prod" {
     protocol        = "tcp"
     security_groups = [aws_security_group.alb.id]
   }
+
+  # El acceso público directo (0.0.0.0/0 en 80 y 8001-8005) que se usó para probar mientras el
+  # registro de imágenes estaba roto se cerró el 2026-09-22 (BE-INT-06 DoD: "VM-PROD ya no es
+  # pública"). Único camino público a las APIs desde ahora: API Gateway -> VPC Link -> ALB.
 
   egress {
     from_port   = 0
@@ -60,8 +64,8 @@ resource "aws_security_group" "vm_prod" {
 }
 
 resource "aws_security_group" "vm_ingesta" {
-  name        = "sg-vm-ingesta"
-  description = "VM-INGESTA — sin inbound, solo sale a VM-DB y S3"
+  name        = "aero-sg-vm-ingesta"
+  description = "VM-INGESTA - sin inbound, solo sale a VM-DB y S3"
   vpc_id      = aws_vpc.main.id
 
   egress {
@@ -75,8 +79,8 @@ resource "aws_security_group" "vm_ingesta" {
 }
 
 resource "aws_security_group" "vm_db" {
-  name        = "sg-vm-db"
-  description = "VM-DB — recibe de VM-PROD y VM-INGESTA en los 3 puertos de motor"
+  name        = "aero-sg-vm-db"
+  description = "VM-DB - recibe de VM-PROD y VM-INGESTA en los 3 puertos de motor"
   vpc_id      = aws_vpc.main.id
 
   dynamic "ingress" {
