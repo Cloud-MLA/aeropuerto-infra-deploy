@@ -13,7 +13,7 @@ resource "aws_apigatewayv2_api" "main" {
   protocol_type = "HTTP"
 
   cors_configuration {
-    allow_origins = ["https://main.d6qmhb5ipm8l2.amplifyapp.com"]
+    allow_origins = [var.frontend_origin]
     allow_methods = ["GET", "POST", "PATCH", "OPTIONS"]
     allow_headers = ["content-type"]
     max_age       = 300

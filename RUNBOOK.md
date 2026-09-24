@@ -184,14 +184,28 @@ y el `nginx.conf` ya están en este repo: `compose/vm-prod/docker-compose.yml` y
 
 > **⚠️ No pegues archivos largos (heredocs de 50+ líneas) directo en la terminal del navegador de Session Manager** — se puede corromper el pegado (líneas duplicadas/cortadas) sin ningún error visible. Mejor: sube los 2 archivos a S3 una vez desde tu máquina y bájalos con `aws s3 cp` dentro de la instancia (usa las credenciales del `LabInstanceProfile` automáticamente, sin configurar nada):
 > ```bash
-> # subir una vez, desde tu máquina, a S3 → deploy/vm-prod/docker-compose.yml y nginx.conf
-> # en la instancia:
+> # Desde la raíz de ESTE repo, con AWS CLI de la sesión activa:
+> aws s3 cp compose/vm-prod/docker-compose.yml s3://<bucket>/deploy/vm-prod/docker-compose.yml
+> aws s3 cp nginx/nginx.conf s3://<bucket>/deploy/vm-prod/nginx.conf
+> # Repetir EN CADA VM-PROD:
 > sudo mkdir -p /opt/prod && cd /opt/prod
 > sudo aws s3 cp s3://<bucket>/deploy/vm-prod/docker-compose.yml .
 > sudo aws s3 cp s3://<bucket>/deploy/vm-prod/nginx.conf .
 > sha256sum docker-compose.yml nginx.conf   # compara contra el hash de los archivos originales
 > ```
 > El `.env` (corto, ~10 líneas) sí se puede pegar directo con `sudo tee .env >/dev/null <<'ENV' ... ENV` sin problema.
+
+Si ya existen las VM-PROD y cambió `nginx/nginx.conf`, vuelve a subir **el archivo del repo**
+al mismo objeto S3 y, en cada VM, copia el objeto sobre `/opt/prod/nginx.conf` con respaldo.
+Comprueba la sintaxis antes de recargar Nginx. No uses como fuente una copia vieja de la VM:
+
+```bash
+sudo aws s3 cp s3://<bucket>/deploy/vm-prod/nginx.conf /tmp/aeropuerto-nginx.conf
+sudo cp -a /opt/prod/nginx.conf "/opt/prod/nginx.conf.bak.$(date +%Y%m%d-%H%M%S)"
+sudo cp /tmp/aeropuerto-nginx.conf /opt/prod/nginx.conf
+sudo docker exec aeropuerto-prod-nginx-1 nginx -t && sudo docker exec aeropuerto-prod-nginx-1 nginx -s reload
+curl -i -X OPTIONS http://localhost/api/vuelos  # 204, sin redirección
+```
 
 `.env` (ajusta `DB_HOST` a la IP privada real de `VM-DB`, y usa las mismas contraseñas del paso 1.6):
 ```bash
@@ -251,9 +265,28 @@ Anotar el **DNS del ALB**.
    - Integration: **Private resource** → ALB → listener 80 → VPC link creado
    - Route: `ANY /{proxy+}`
    - Stage: `$default`, auto-deploy
-3. Copiar la **Invoke URL** (`https://<api-id>.execute-api.us-east-1.amazonaws.com`).
+3. En esta HTTP API, abrir **CORS → Configurar** y guardar:
+   - Origen permitido: URL HTTPS exacta del frontend Amplify, sin `/` final
+     (actualmente `https://main.d6qmhb5ipm8l2.amplifyapp.com`).
+   - Métodos: `GET`, `POST`, `PATCH`, `OPTIONS`; headers: `content-type`;
+     max-age: `300`; credenciales: desactivadas.
+   - En la consola, pulsa **Agregar** después de escribir el origen y el header;
+     comprueba que queden como valores seleccionados antes de guardar.
+   - Si usas Terraform en vez de la consola, estos valores vienen de
+     `terraform/api_gateway.tf`. Usa el estado original y ajusta
+     `frontend_origin` si la URL de Amplify cambió.
+4. Copiar la **Invoke URL** (`https://<api-id>.execute-api.us-east-1.amazonaws.com`).
    Probar: `curl -s <invoke-url>/api/pasajeros/health`.
-4. Pasar esa URL a Alexander (`VITE_API_BASE`) y a la matriz de verificación.
+   Verificar también el preflight desde el origen real del frontend:
+   ```bash
+   curl -i -X OPTIONS '<invoke-url>/api/vuelos' \
+     -H 'Origin: https://main.d6qmhb5ipm8l2.amplifyapp.com' \
+     -H 'Access-Control-Request-Method: GET' \
+     -H 'Access-Control-Request-Headers: content-type'
+   ```
+   Debe responder sin redirección e incluir `Access-Control-Allow-Origin` con
+   el origen de Amplify. Si la app se recreó, usa su nueva URL en ambos lugares.
+5. Pasar la Invoke URL a Alexander (`VITE_API_BASE`) y a la matriz de verificación.
 
 > **⚠️ El asistente a veces crea la ruta `ANY /{proxy+}` sin asociarle la integración.** Verifica en la ruta creada (Routes → click en la ruta) que la sección "Integración" **no** diga "No hay ninguna integración asociada" — si dice eso, asóciala manualmente a la integración privada (VPC Link → ALB) antes de probar.
 
@@ -286,6 +319,12 @@ terminado instancias.
 5. **EC2 → Target groups → `tg-vm-prod`**: verificar que los 2 targets quedan `healthy`
    (si no, re-registrarlos — a veces se des-registran al parar la instancia).
 6. **Probar la URL de API Gateway**: `curl -s <invoke-url>/api/pasajeros/health` → `{"status":"UP"...}`.
+   Repetir el preflight del paso 1.9 y confirmar `Access-Control-Allow-Origin`.
+   Si falla, revisar CORS de **esa misma API** y comprobar en **ambas** VM-PROD que
+   `/opt/prod/nginx.conf` tenga `if ($request_method = OPTIONS)` y
+   `location = /api/vuelos`. Un simple stop/start de las mismas instancias no
+   requiere editar estos archivos otra vez; si fueron recreadas o se copiaron
+   artefactos viejos, restaurar desde el S3 actualizado en 1.7.
 7. Si el **NAT Gateway** fue borrado: recrearlo (VPC → NAT gateways → Create, subred `public1`,
    Elastic IP nueva) y apuntar `0.0.0.0/0` al nuevo NAT. **Ojo:** el wizard "VPC and more" crea
    **una route table privada por AZ** (`...-rtb-private1-us-east-1a` y `...-rtb-private2-us-east-1b`),

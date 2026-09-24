@@ -4,6 +4,12 @@ variable "aws_region" {
   default     = "us-east-1"
 }
 
+variable "frontend_origin" {
+  description = "Origen HTTPS exacto del frontend en Amplify, sin barra final; actualizar si se recrea la app."
+  type        = string
+  default     = "https://main.d6qmhb5ipm8l2.amplifyapp.com"
+}
+
 variable "azs" {
   description = "AZs a usar (2, una por subred pública/privada)."
   type        = list(string)

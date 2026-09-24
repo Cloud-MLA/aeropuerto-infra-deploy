@@ -30,6 +30,13 @@ export AWS_DEFAULT_REGION=us-east-1
 
 Repetir esto (nuevas credenciales) cada vez que reinicies el Lab — el token viejo deja de servir.
 
+El estado de Terraform es **local** (`terraform.tfstate`, ignorado por Git). Para actualizar
+una infraestructura ya creada, ejecuta Terraform desde la carpeta que conserva **su estado
+original**; una copia nueva del repositorio sin ese archivo intentará crear otra VPC, API y
+máquinas. No ejecutes `terraform apply` si `terraform plan` propone recrear estos recursos.
+El origen CORS del frontend se controla con `frontend_origin` en `terraform.tfvars`; si la
+URL de Amplify cambia, actualiza ese valor antes de aplicar.
+
 ## Uso
 
 ```bash
