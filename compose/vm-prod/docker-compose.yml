@@ -118,7 +118,9 @@ services:
     environment:
       PORT: 8004
       ENV: prod
-      MS1_BASE_URL: http://ms1:8001
+      # MS4 solicita /api/pasajeros/*; nginx recorta ese prefijo antes de llegar a MS1.
+      # Llamar directo a ms1:8001 deja el prefijo intacto y devuelve 404.
+      MS1_BASE_URL: http://nginx
       MS2_BASE_URL: http://ms2:8002
       MS3_BASE_URL: http://ms3:8003
     healthcheck:
