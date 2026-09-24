@@ -1,6 +1,7 @@
 # Copiar a terraform.tfvars y ajustar si hace falta (no se sube a git).
 # aws_region = "us-east-1"
 # bucket_name = "mla-aeropuerto-lake"
+# frontend_origin = "https://main.d6qmhb5ipm8l2.amplifyapp.com"
 
 # Obligatorias — sin default, Terraform no aplica sin esto puesto en terraform.tfvars.
 # Solo letras, números, '-'/'_' (ver RUNBOOK 1.6: '$'/'\'/comillas rompen el init de mysql:8).
